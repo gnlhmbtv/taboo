@@ -34,23 +34,23 @@ app.delete("/users/:username", async (req, res) => {
 });
 
 
+
 // Register user endpoint
 app.post("/register", async (req, res) => {
   const { username, password } = req.body; // Extract username and password from request body
   try {
     // Attempt to register the user
     const userId = await registerUser(username, password);
-    if (userId) {
-      res.status(201).json({ message: "User registration successful", userId });
-    } else {
-      res.status(400).json({ error: "User already exists" });
-    }
+    res.status(201).json({ message: "User registration successful", userId });
   } catch (error) {
-    console.error("Error registering user:", error.message);
-    res.status(500).json({ error: "Unsuccessful registration" });
+    if (error.message === "User already exists") {
+      res.status(400).json({ error: error.message });
+    } else {
+      console.error("Error registering user:", error.message);
+      res.status(500).json({ error: "Unsuccessful registration" });
+    }
   }
 });
-
 
 // Login user endpoint
 app.post("/login", async (req, res) => {

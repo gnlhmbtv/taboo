@@ -13,6 +13,7 @@ async function registerUser(username, password) {
     if (checkResult.rows.length > 0) {
       // User with the same username already exists
       throw new Error("User already exists");
+      console.log(checkResult.rows.length)
     }
 
     // If the username doesn't exist, proceed with the registration
