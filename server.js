@@ -2,10 +2,27 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const { pool } = require('./dbConfig');
 const { registerUser, loginUser, deleteUser } = require("./auth");
-const { getRandomCardWithForbiddenWords, addCard } = require('./card');
+const { getRandomCardWithForbiddenWords, addCard, deleteCard } = require('./card');
 
 const app = express();
 app.use(bodyParser.json());
+
+
+// DELETE card endpoint
+app.delete("/card/:cardId", async (req, res) => {
+  const cardId = req.params.cardId;
+  try {
+      const deleted = await deleteCard(cardId);
+      if (deleted) {
+          res.status(200).json({ message: "Card deleted successfully" });
+      } else {
+          res.status(404).json({ error: "Card not found or deletion unsuccessful" });
+      }
+  } catch (error) {
+      console.error("Error deleting card:", error);
+      res.status(500).json({ error: "Failed to delete card" });
+  }
+});
 
 // Route to add a new card
 app.post('/card', async (req, res) => {

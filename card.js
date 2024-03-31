@@ -105,4 +105,16 @@ async function addCard(mainWord, forbiddenWords) {
 }
 
 
-module.exports = { getRandomCardWithForbiddenWords, addCard };
+async function deleteCard(cardId) {
+    try {
+        const query = "DELETE FROM taboo_cards WHERE id = $1";
+        await pool.query(query, [cardId]);
+        return true; // Deletion successful
+    } catch (error) {
+        console.error("Error deleting card:", error.message);
+        return false; // Deletion failed
+    }
+}
+
+
+module.exports = { getRandomCardWithForbiddenWords, addCard, deleteCard };
