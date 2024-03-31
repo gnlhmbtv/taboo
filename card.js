@@ -70,4 +70,39 @@ async function initializeMainWords() {
 // Initialize the list of all main words
 initializeMainWords();
 
-module.exports = { getRandomCardWithForbiddenWords };
+
+
+async function addCard(mainWord, forbiddenWords) {
+    const client = await pool.connect();
+    try {
+        if (forbiddenWords.length === 0) {
+            throw new Error("Forbidden words array cannot be empty");
+        }
+
+        // Check if a card with the main word already exists
+        const checkQuery = "SELECT id FROM taboo_cards WHERE main_word = $1";
+        const checkResult = await client.query(checkQuery, [mainWord]);
+        if (checkResult.rows.length > 0) {
+            throw new Error("A card with this main word already exists");
+        }
+
+        await client.query('BEGIN');
+
+        // Insert the main word into the database
+        const mainWordQuery = "INSERT INTO taboo_cards (main_word, forbidden_words) VALUES ($1, $2) RETURNING id";
+        const mainWordResult = await client.query(mainWordQuery, [mainWord, forbiddenWords]);
+        const cardId = mainWordResult.rows[0].id;
+
+        await client.query('COMMIT');
+        return cardId;
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error("Error adding card:", error.message);
+        throw error;
+    } finally {
+        client.release();
+    }
+}
+
+
+module.exports = { getRandomCardWithForbiddenWords, addCard };

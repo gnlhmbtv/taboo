@@ -2,10 +2,22 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const { pool } = require('./dbConfig');
 const { registerUser, loginUser, deleteUser } = require("./auth");
-const { getRandomCardWithForbiddenWords } = require('./card');
+const { getRandomCardWithForbiddenWords, addCard } = require('./card');
 
 const app = express();
 app.use(bodyParser.json());
+
+// Route to add a new card
+app.post('/card', async (req, res) => {
+  const { mainWord, forbiddenWords } = req.body;
+  try {
+    const cardId = await addCard(mainWord, forbiddenWords);
+    res.status(201).json({ message: "Card added successfully", cardId });
+  } catch (error) {
+    console.error("Error adding card:", error.message);
+    res.status(500).json({ error: "Failed to add card" });
+  }
+});
 
 
 // Route to get a random card with one main word and 6 random forbidden words
