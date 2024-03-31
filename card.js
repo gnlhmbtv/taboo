@@ -6,6 +6,17 @@ let allMainWords = [];
 // Keep track of shown main words
 let shownMainWords = [];
 
+async function getAllCards() {
+    try {
+      const query = "SELECT * FROM taboo_cards";
+      const result = await pool.query(query);
+      return result.rows;
+    } catch (error) {
+      console.error("Error fetching cards:", error);
+      throw error;
+    }
+  }
+
 async function getRandomCardWithForbiddenWords() {
     try {
         // If all main words have been shown, reset the list of shown main words
@@ -70,8 +81,6 @@ async function initializeMainWords() {
 // Initialize the list of all main words
 initializeMainWords();
 
-
-
 async function addCard(mainWord, forbiddenWords) {
     const client = await pool.connect();
     try {
@@ -104,7 +113,6 @@ async function addCard(mainWord, forbiddenWords) {
     }
 }
 
-
 async function deleteCard(cardId) {
     try {
         const query = "DELETE FROM taboo_cards WHERE id = $1";
@@ -117,4 +125,4 @@ async function deleteCard(cardId) {
 }
 
 
-module.exports = { getRandomCardWithForbiddenWords, addCard, deleteCard };
+module.exports = { getRandomCardWithForbiddenWords, addCard, deleteCard, getAllCards };

@@ -31,9 +31,6 @@ async function registerUser(username, password) {
   }
 }
 
-
-
-
 async function deleteUser(username) {
   try {
     const query = "DELETE FROM users WHERE name = $1";

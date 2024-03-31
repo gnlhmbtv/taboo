@@ -7,6 +7,17 @@ const { getRandomCardWithForbiddenWords, addCard, deleteCard } = require('./card
 const app = express();
 app.use(bodyParser.json());
 
+// Get all cards endpoint
+app.get("/cards", async (req, res) => {
+  try {
+    const query = "SELECT * FROM taboo_cards";
+    const result = await pool.query(query);
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error("Error fetching cards:", error);
+    res.status(500).send("Failed to fetch cards");
+  }
+});
 
 // DELETE card endpoint
 app.delete("/card/:cardId", async (req, res) => {
