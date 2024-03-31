@@ -2,9 +2,22 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const { pool } = require('./dbConfig');
 const { registerUser, loginUser, deleteUser } = require("./auth");
+const { getRandomCardWithForbiddenWords } = require('./card');
 
 const app = express();
 app.use(bodyParser.json());
+
+
+// Route to get a random card with one main word and 6 random forbidden words
+app.get('/card', async (req, res) => {
+  try {
+      const card = await getRandomCardWithForbiddenWords();
+      res.json(card);
+  } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch card' });
+  }
+});
+
 
 // Get all users endpoint
 app.get("/users", async (req, res) => {
