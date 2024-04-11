@@ -3,9 +3,48 @@ const bodyParser = require("body-parser");
 const { pool } = require('./dbConfig');
 const { registerUser, loginUser, deleteUser } = require("./auth");
 const { getRandomCardWithForbiddenWords, addCard, deleteCard } = require('./card');
+const {webSocketServer} = require('./websocket');
+const { sendMessage, getMessagesForUser } = require('./message');
+
 
 const app = express();
 app.use(bodyParser.json());
+
+// retrieve message endpoint
+app.get('/messages/:userId', async (req, res) => {
+  const userId = req.params.userId;
+
+  try {
+      // Retrieve messages for the specified user from the database
+      const messages = await getMessagesForUser(userId);
+      res.status(200).json(messages);
+  } catch (error) {
+      console.error('Error retrieving messages:', error.message);
+      res.status(500).json({ error: 'Error retrieving messages' });
+  }
+});
+
+// Define a route to handle sending messages via WebSocket
+app.post('/send-message', async (req, res) => {
+  const { senderId, receiverId, messageContent } = req.body;
+
+  try {
+      // Send message using the sendMessage function
+      const messageId = await sendMessage(senderId, receiverId, messageContent);
+
+      // Broadcast the new message to all connected WebSocket clients
+      webSocketServer.clients.forEach(function each(client) {
+          if (client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify({ type: 'message', messageId }));
+          }
+      });
+
+      res.status(200).json({ success: true, messageId });
+  } catch (error) {
+      console.error('Error sending message:', error.message);
+      res.status(500).json({ success: false, error: 'Error sending message' });
+  }
+});
 
 // Get all cards endpoint
 app.get("/cards", async (req, res) => {
