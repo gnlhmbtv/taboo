@@ -1,5 +1,40 @@
 const bcrypt = require("bcrypt");
 const { pool } = require("./dbConfig.js");
+const jwt = require("jsonwebtoken");
+const dotenv = require("dotenv");
+
+dotenv.config();
+
+const JWT_SECRET = process.env.JWT_SECRET;
+
+function generateToken(userId) {
+  const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: "1h" });
+  return token;
+}
+
+const verifyToken = (req, res, next) => {
+  const authorization = req.headers.authorization;
+  const token = authorization ? authorization.split(" ")[1] : null;
+  
+  if (!token) {
+    return res.status(401).json({ error: "No token provided" });
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+    req.userId = decoded.userId; // Store userId in the request
+    next(); // Continue to the next middleware or route handler
+  });
+};
+
+const getUserDetails = async (userId) => {
+  const query = "SELECT id, name FROM users WHERE id = $1";
+  const result = await pool.query(query, [userId]);
+  return result.rows[0]; // Return the user details
+};
+
 
 async function registerUser(username, password) {
   const client = await pool.connect();
@@ -57,14 +92,15 @@ async function loginUser(username, password) {
     }
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (isPasswordValid) {
-      return user; // Login successful
+      const token = generateToken(user.id); // Generate JWT token
+      return { token, user }; // Return token and user info
     } else {
-      return null; // Incorrect password
-    }
+      return null;
+    } 
   } catch (error) {
     console.error("Error logging in:", error);
     return null; // Login failed
   }
 }
 
-module.exports = { registerUser, loginUser, deleteUser };
+module.exports = { registerUser, loginUser, deleteUser, generateToken, verifyToken, getUserDetails };

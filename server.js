@@ -1,11 +1,101 @@
 const express = require("express");
+const dotenv = require("dotenv");
+const jwt = require("jsonwebtoken");
 const bodyParser = require("body-parser");
 const { pool } = require('./dbConfig');
-const { registerUser, loginUser, deleteUser } = require("./auth");
+const { registerUser, loginUser, deleteUser, generateToken, verifyToken, getUserDetails } = require("./auth");
 const { getRandomCardWithForbiddenWords, addCard, deleteCard } = require('./card');
 
+dotenv.config(); // Load environment variables
+
+const JWT_SECRET = process.env.JWT_SECRET; // Get JWT secret from .env
 const app = express();
 app.use(bodyParser.json());
+
+// Endpoint to get the current user's details
+app.get("/currentUser", verifyToken, async (req, res) => {
+// Accessing 'userId' using bracket notation
+const userId = req["userId"]; 
+
+if (!userId) {
+  return res.status(401).json({ error: "User ID not found in token" });
+}
+
+  try {
+    const user = await getUserDetails(userId);
+    if (user) {
+      res.status(200).json({ user });
+    } else {
+      res.status(404).json({ error: "User not found" });
+    }
+  } catch (error) {
+    console.error("Error getting user:", error);
+    res.status(500).json({ error: "Failed to get user details" });
+  }
+});
+
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1]; // Get the token from the header
+
+  if (!token) {
+    return res.status(401).json({ error: "Token not provided" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET); // Decode the token
+
+    // Check if the decoded token has the expected structure
+    if (typeof decoded !== "object" || !("userId" in decoded)) {
+      throw new Error("Invalid token structure"); // Handle unexpected structure
+    }
+
+    req.userId = decoded.userId; // Safely access userId
+    next(); // Continue to the next middleware
+  } catch (error) {
+    return res.status(401).json({ error: "Invalid token" }); // Handle invalid token
+  }
+}
+
+
+
+// Login user endpoint
+app.post("/login", async (req, res) => {
+  const { username, password } = req.body; // De-structure username and password from request body
+
+  // Check if either username or password is missing
+  if (!username || !password) {
+    return res.status(400).json({ error: "Username and password are required" }); // Corrected error handling
+  }
+
+  // Continue with login process
+  const loginResult = await loginUser(username, password);
+  if (loginResult) {
+    const { token, user } = loginResult;
+    return res.status(200).json({ token, user });
+  } else {
+    return res.status(401).json({ error: "Invalid username or password" });
+  }
+});
+
+
+
+// Logout endpoint
+app.post("/logout", (req, res) => {
+  // Logout is typically handled by removing the token on the client side.
+  res.status(200).json({ message: "Logged out successfully" });
+});
+
+// Route to get a random card with one main word and 6 random forbidden words
+app.get("/card", authenticateToken, async (req, res) => {
+  try {
+    const card = await getRandomCardWithForbiddenWords();
+    res.json(card);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch card" });
+  }
+});
+
 
 // Get all cards endpoint
 app.get("/cards", async (req, res) => {
@@ -23,15 +113,15 @@ app.get("/cards", async (req, res) => {
 app.delete("/card/:cardId", async (req, res) => {
   const cardId = req.params.cardId;
   try {
-      const deleted = await deleteCard(cardId);
-      if (deleted) {
-          res.status(200).json({ message: "Card deleted successfully" });
-      } else {
-          res.status(404).json({ error: "Card not found or deletion unsuccessful" });
-      }
+    const deleted = await deleteCard(cardId);
+    if (deleted) {
+      res.status(200).json({ message: "Card deleted successfully" });
+    } else {
+      res.status(404).json({ error: "Card not found or deletion unsuccessful" });
+    }
   } catch (error) {
-      console.error("Error deleting card:", error);
-      res.status(500).json({ error: "Failed to delete card" });
+    console.error("Error deleting card:", error);
+    res.status(500).json({ error: "Failed to delete card" });
   }
 });
 
@@ -48,15 +138,15 @@ app.post('/card', async (req, res) => {
 });
 
 
-// Route to get a random card with one main word and 6 random forbidden words
-app.get('/card', async (req, res) => {
-  try {
-      const card = await getRandomCardWithForbiddenWords();
-      res.json(card);
-  } catch (error) {
-      res.status(500).json({ error: 'Failed to fetch card' });
-  }
-});
+// // Route to get a random card with one main word and 6 random forbidden words
+// app.get('/card', async (req, res) => {
+//   try {
+//     const card = await getRandomCardWithForbiddenWords();
+//     res.json(card);
+//   } catch (error) {
+//     res.status(500).json({ error: 'Failed to fetch card' });
+//   }
+// });
 
 
 // Get all users endpoint
@@ -105,20 +195,20 @@ app.post("/register", async (req, res) => {
   }
 });
 
-// Login user endpoint
-app.post("/login", async (req, res) => {
-  const { username, password } = req.body;
-  if (!username || !password) {
-    return res.status(400).json({ error: "Username and password are required" });
-  }
+// // Login user endpoint
+// app.post("/login", async (req, res) => {
+//   const { username, password } = req.body;
+//   if (!username || !password) {
+//     return res.status(400).json({ error: "Username and password are required" });
+//   }
 
-  const user = await loginUser(username, password);
-  if (user) {
-    res.status(200).json(user);
-  } else {
-    res.status(401).send("Invalid username or password");
-  }
-});
+//   const user = await loginUser(username, password);
+//   if (user) {
+//     res.status(200).json(user);
+//   } else {
+//     res.status(401).send("Invalid username or password");
+//   }
+// });
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
