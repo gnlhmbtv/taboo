@@ -1,5 +1,6 @@
 const express = require("express");
 const dotenv = require("dotenv");
+const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const bodyParser = require("body-parser");
 const { pool } = require('./dbConfig');
@@ -11,6 +12,8 @@ dotenv.config(); // Load environment variables
 const JWT_SECRET = process.env.JWT_SECRET; // Get JWT secret from .env
 const app = express();
 app.use(bodyParser.json());
+app.use(cors());
+
 
 // Endpoint to get the current user's details
 app.get("/currentUser", verifyToken, async (req, res) => {
@@ -20,7 +23,7 @@ app.get("/currentUser", verifyToken, async (req, res) => {
   if (!userId) {
     return res.status(401).json({ error: "User ID not found in token" });
   }
-  
+
   try {
     const user = await getUserDetails(userId);
     if (user) {
@@ -33,6 +36,8 @@ app.get("/currentUser", verifyToken, async (req, res) => {
     res.status(500).json({ error: "Failed to get user details" });
   }
 });
+
+
 
 function authenticateToken(req, res, next) {
   const authHeader = req.headers["authorization"];
@@ -80,11 +85,6 @@ app.post("/login", async (req, res) => {
 
 
 
-// Logout endpoint
-app.post("/logout", (req, res) => {
-  // Logout is typically handled by removing the token on the client side.
-  res.status(200).json({ message: "Logged out successfully" });
-});
 
 // Route to get a random card with one main word and 6 random forbidden words
 app.get("/card", authenticateToken, async (req, res) => {
@@ -109,6 +109,8 @@ app.get("/cards", async (req, res) => {
   }
 });
 
+
+
 // DELETE card endpoint
 app.delete("/card/:cardId", async (req, res) => {
   const cardId = req.params.cardId;
@@ -124,6 +126,8 @@ app.delete("/card/:cardId", async (req, res) => {
     res.status(500).json({ error: "Failed to delete card" });
   }
 });
+
+
 
 // Route to add a new card
 app.post('/card', async (req, res) => {
