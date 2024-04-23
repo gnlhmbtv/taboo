@@ -1,4 +1,5 @@
 const express = require("express");
+const cors = require('cors');
 const bodyParser = require("body-parser");
 const { pool } = require('./dbConfig');
 const { registerUser, loginUser, deleteUser } = require("./auth");
@@ -9,6 +10,12 @@ const { sendMessage, getMessagesForUser } = require('./message');
 
 const app = express();
 app.use(bodyParser.json());
+// Configure CORS to allow requests from 'http://127.0.0.1:5500'
+const corsOptions = {
+  origin: 'http://127.0.0.1:5500',
+  optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
+};
+app.use(cors(corsOptions));
 
 // retrieve message endpoint
 app.get('/messages/:userId', async (req, res) => {
