@@ -15,12 +15,12 @@ app.use(bodyParser.json());
 // Endpoint to get the current user's details
 app.get("/currentUser", verifyToken, async (req, res) => {
 // Accessing 'userId' using bracket notation
-const userId = req["userId"]; 
+  const userId = req["userId"]; 
 
-if (!userId) {
-  return res.status(401).json({ error: "User ID not found in token" });
-}
-
+  if (!userId) {
+    return res.status(401).json({ error: "User ID not found in token" });
+  }
+  
   try {
     const user = await getUserDetails(userId);
     if (user) {
