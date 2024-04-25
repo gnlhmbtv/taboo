@@ -199,20 +199,6 @@ app.post("/register", async (req, res) => {
   }
 });
 
-// // Login user endpoint
-// app.post("/login", async (req, res) => {
-//   const { username, password } = req.body;
-//   if (!username || !password) {
-//     return res.status(400).json({ error: "Username and password are required" });
-//   }
-
-//   const user = await loginUser(username, password);
-//   if (user) {
-//     res.status(200).json(user);
-//   } else {
-//     res.status(401).send("Invalid username or password");
-//   }
-// });
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
