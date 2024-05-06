@@ -3,37 +3,49 @@ const { sendMessage } = require('./message');
 
 const wss = new WebSocket.Server({ port: 3000 }); // WebSocket server initialization
 
+// Map to store WebSocket connections and their corresponding user IDs
+const clients = new Map();
+
 wss.on('connection', function connection(ws) {
-    console.log('Client connected');
+    console.log('WebSocket Client connected');
 
     // Handle incoming messages from clients
-    ws.on('message', async function incoming(message) {
-        console.log('received: %s', message);
-        const receivedMessage = JSON.parse(message);
+    ws.on('message', async (message) => {
+        try {
+            // Parse the incoming message
+            const data = JSON.parse(message);
 
-        // Check the type of message
-        switch (receivedMessage.type) {
-            case 'send':
-                // Send message to the appropriate recipient
-                try {
-                    const messageId = await sendMessage(receivedMessage.senderId, receivedMessage.receiverId, receivedMessage.messageContent);
-                    // Broadcast the new message to all connected clients
-                    wss.clients.forEach(function each(client) {
-                        if (client !== ws && client.readyState === WebSocket.OPEN) {
-                            client.send(JSON.stringify({ type: 'message', messageId }));
-                        }
-                    });
-                } catch (error) {
-                    console.error('Error sending message:', error.message);
-                }
-                break;
-            // Add other cases for different message types if needed
+            // Determine the type of message
+            switch (data.type) {
+                case 'join_room':
+                    // Associate the WebSocket connection with the user ID and room ID
+                    clients.set(socket, { userId: data.userId, roomId: data.roomId });
+                    console.log(`User ${data.userId} joined room ${data.roomId}`);
+                    break;
+                case 'message':
+                    // Broadcast the message to all clients in the same room
+                    const sender = clients.get(socket);
+                    if (sender) {
+                        const roomMembers = Array.from(clients.entries())
+                            .filter(([clientSocket, clientData]) => clientData.roomId === sender.roomId && clientSocket !== socket);
+                        roomMembers.forEach(([memberSocket, memberData]) => {
+                            memberSocket.send(JSON.stringify({ type: 'message', content: data.content }));
+                        });
+                    }
+                    break;
+                default:
+                    console.warn('Unknown WebSocket message type:', data.type);
+            }
+        } catch (error) {
+            console.error('Error handling WebSocket message:', error);
         }
     });
 
-    // Handle client disconnection
-    ws.on('close', function close() {
-        console.log('Client disconnected');
+    // Handle WebSocket connection closure
+    ws.on('close', () => {
+        // Remove the WebSocket connection from the clients map
+        clients.delete(ws);
+        console.log('WebSocket client disconnected');
     });
 });
 

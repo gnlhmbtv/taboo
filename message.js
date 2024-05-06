@@ -1,14 +1,14 @@
 const { pool } = require("./dbConfig.js");
 
 // Function to send a message
-async function sendMessage(senderId, receiverId, messageContent) {
+async function sendMessage(senderId, messageContent, roomId) {
     try {
         const client = await pool.connect();
         const query = `
-            INSERT INTO messages (sender_id, receiver_id, message_content)
+            INSERT INTO messages (sender_id, message_content, room_id)
             VALUES ($1, $2, $3)
             RETURNING id`;
-        const values = [senderId, receiverId, messageContent];
+        const values = [senderId, messageContent, roomId];
         const result = await client.query(query, values);
         client.release();
         return result.rows[0].id; // Return the ID of the newly inserted message

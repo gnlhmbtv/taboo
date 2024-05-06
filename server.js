@@ -6,6 +6,9 @@ const bodyParser = require("body-parser");
 const { pool } = require('./dbConfig');
 const { registerUser, loginUser, deleteUser, generateToken, verifyToken, getUserDetails } = require("./auth");
 const { getRandomCardWithForbiddenWords, addCard, deleteCard } = require('./card');
+const { webSocketServer } = require('./websocket');
+const { sendMessage, getMessagesForUser } = require('./message');
+const { createRoom, joinExistingRoom, getAvailableRooms, getMessagesForRoom } = require('./room');
 
 dotenv.config(); // Load environment variables
 
@@ -14,11 +17,113 @@ const app = express();
 app.use(bodyParser.json());
 app.use(cors());
 
+//create room endpoint
+app.post('/create-room', async (req, res) => {
+  const { roomName, initialMembers } = req.body;
+
+  try {
+    // Call the createRoom function with provided parameters
+    const roomId = await createRoom(roomName, initialMembers);
+    res.status(201).json({ success: true, roomId });
+  } catch (error) {
+    console.error('Error creating room:', error);
+    res.status(500).json({ success: false, error: 'Failed to create room' });
+  }
+});
+
+app.post('/join-room', async (req, res) => {
+  const { userId, roomId } = req.body;
+
+  try {
+    // Call the joinExistingRoom function with provided parameters
+    const message = await joinExistingRoom(userId, roomId);
+
+    // Respond with success message
+    res.status(200).json({ success: true, message });
+  } catch (error) {
+    console.error('Error joining room:', error);
+    res.status(500).json({ success: false, error: 'Failed to join room' });
+  }
+});
+
+// list rooms endpoint
+app.get('/rooms', async (req, res) => {
+  try {
+    // Call the getAvailableRooms function to retrieve the list of rooms
+    const rooms = await getAvailableRooms();
+    res.status(200).json({ success: true, rooms });
+  } catch (error) {
+    console.error('Error fetching available rooms:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch available rooms' });
+  }
+});
+
+// WebSocket event handler for listing rooms
+webSocketServer.on('connection', (socket) => {
+  console.log('WebSocket client connected');
+
+  // Emit the list of available rooms when a new client connects
+  socket.send(JSON.stringify({ type: 'available_rooms', rooms: getAvailableRooms() }));
+});
+
+// get messages for one room endpoint
+app.get('/messages/:roomId', async (req, res) => {
+  const roomId = req.params.roomId;
+
+  try {
+    // Call the getMessagesForRoom function with the provided room ID
+    const messages = await getMessagesForRoom(roomId);
+    res.status(200).json({ success: true, messages });
+  } catch (error) {
+    console.error('Error fetching messages for room:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch messages for room' });
+  }
+});
+
+
+// retrieve message endpoint
+app.get('/messages/:userId', async (req, res) => {
+  const userId = req.params.userId;
+
+  try {
+    // Retrieve messages for the specified user from the database
+    const messages = await getMessagesForUser(userId);
+    res.status(200).json(messages);
+  } catch (error) {
+    console.error('Error retrieving messages:', error.message);
+    res.status(500).json({ error: 'Error retrieving messages' });
+  }
+});
+
+// Define a route to handle sending messages via WebSocket
+app.post('/send-message', async (req, res) => {
+  // Extract necessary data from the request body
+  const { senderId, messageContent, roomId } = req.body;
+
+  try {
+    // Call the sendMessage function with the extracted data
+    const messageId = await sendMessage(senderId, messageContent, roomId);
+
+    // Broadcast the message to all WebSocket clients in the room
+    const roomMembers = Array.from(clients.values())
+      .filter(client => client.roomId === roomId);
+    roomMembers.forEach(client => {
+      client.send(JSON.stringify({ type: 'message', content: messageContent }));
+    });
+
+    // Return success response with the ID of the newly inserted message
+    res.status(200).json({ success: true, messageId });
+  } catch (error) {
+    // Return error response if there's an error
+    console.error('Error sending message:', error);
+    res.status(500).json({ success: false, error: 'Failed to send message' });
+  }
+});
 
 // Endpoint to get the current user's details
 app.get("/currentUser", verifyToken, async (req, res) => {
-// Accessing 'userId' using bracket notation
-  const userId = req["userId"]; 
+  // Accessing 'userId' using bracket notation
+  const userId = req["userId"];
 
   if (!userId) {
     return res.status(401).json({ error: "User ID not found in token" });
