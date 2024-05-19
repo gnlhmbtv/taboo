@@ -6,17 +6,43 @@ let allMainWords = [];
 // Keep track of shown main words
 let shownMainWords = [];
 
+// Function to shuffle an array
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+}
+
+// Function to initialize the list of all main words
+async function initializeMainWords() {
+    try {
+        const query = 'SELECT DISTINCT main_word FROM taboo_cards';
+        const result = await pool.query(query);
+        allMainWords = result.rows.map(row => row.main_word);
+    } catch (error) {
+        console.error('Error initializing main words:', error);
+        throw error;
+    }
+}
+
+// Initialize the list of all main words
+initializeMainWords();
+
+// Fetch all cards
 async function getAllCards() {
     try {
-      const query = "SELECT * FROM taboo_cards";
-      const result = await pool.query(query);
-      return result.rows;
+        const query = "SELECT * FROM taboo_cards";
+        const result = await pool.query(query);
+        return result.rows;
     } catch (error) {
-      console.error("Error fetching cards:", error);
-      throw error;
+        console.error("Error fetching cards:", error);
+        throw error;
     }
-  }
+}
 
+// Get a random card with forbidden words
 async function getRandomCardWithForbiddenWords() {
     try {
         // If all main words have been shown, reset the list of shown main words
@@ -57,30 +83,7 @@ async function getRandomCardWithForbiddenWords() {
     }
 }
 
-// Function to shuffle an array
-function shuffleArray(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
-}
-
-// Function to initialize the list of all main words
-async function initializeMainWords() {
-    try {
-        const query = 'SELECT DISTINCT main_word FROM taboo_cards';
-        const result = await pool.query(query);
-        allMainWords = result.rows.map(row => row.main_word);
-    } catch (error) {
-        console.error('Error initializing main words:', error);
-        throw error;
-    }
-}
-
-// Initialize the list of all main words
-initializeMainWords();
-
+// Add a new card
 async function addCard(mainWord, forbiddenWords) {
     const client = await pool.connect();
     try {
@@ -113,6 +116,7 @@ async function addCard(mainWord, forbiddenWords) {
     }
 }
 
+// Delete a card
 async function deleteCard(cardId) {
     try {
         const query = "DELETE FROM taboo_cards WHERE id = $1";
@@ -123,6 +127,5 @@ async function deleteCard(cardId) {
         return false; // Deletion failed
     }
 }
-
 
 module.exports = { getRandomCardWithForbiddenWords, addCard, deleteCard, getAllCards };

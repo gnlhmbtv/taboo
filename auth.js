@@ -31,7 +31,7 @@ const verifyToken = (req, res, next) => {
 
 const getUserDetails = async (userId) => {
   const query = "SELECT id, name FROM users WHERE id = $1";
-  const result = await pool.query(query, [userId]);
+  const result = await pool.query(query, [userId]); 
   return result.rows[0]; // Return the user details
 };
 

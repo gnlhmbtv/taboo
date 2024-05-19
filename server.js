@@ -11,11 +11,14 @@ const { sendMessage, getMessagesForUser } = require('./message');
 const { createRoom, joinExistingRoom, getAvailableRooms, getMessagesForRoom } = require('./room');
 
 dotenv.config(); // Load environment variables
-
 const JWT_SECRET = process.env.JWT_SECRET; // Get JWT secret from .env
 const app = express();
-app.use(bodyParser.json());
 app.use(cors());
+app.use(express.json());
+app.use(bodyParser.json());
+
+
+//***************ROOM AND MESSAGE ENDPOINTS******************
 
 //create room endpoint
 app.post('/create-room', async (req, res) => {
@@ -80,7 +83,6 @@ app.get('/messages/:roomId', async (req, res) => {
   }
 });
 
-
 // retrieve message endpoint
 app.get('/messages/:userId', async (req, res) => {
   const userId = req.params.userId;
@@ -120,6 +122,8 @@ app.post('/send-message', async (req, res) => {
   }
 });
 
+//***************** USER AUTH ENDPOINTS **************************
+
 // Endpoint to get the current user's details
 app.get("/currentUser", verifyToken, async (req, res) => {
   // Accessing 'userId' using bracket notation
@@ -142,8 +146,7 @@ app.get("/currentUser", verifyToken, async (req, res) => {
   }
 });
 
-
-
+//Authenticate token
 function authenticateToken(req, res, next) {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1]; // Get the token from the header
@@ -167,8 +170,6 @@ function authenticateToken(req, res, next) {
   }
 }
 
-
-
 // Login user endpoint
 app.post("/login", async (req, res) => {
   const { username, password } = req.body; // De-structure username and password from request body
@@ -182,81 +183,32 @@ app.post("/login", async (req, res) => {
   const loginResult = await loginUser(username, password);
   if (loginResult) {
     const { token, user } = loginResult;
+
+    // Store the token in the session
+    // req.session.token = token; // Store token in session
+
     return res.status(200).json({ token, user });
   } else {
     return res.status(401).json({ error: "Invalid username or password" });
   }
 });
 
-
-
-
-// Route to get a random card with one main word and 6 random forbidden words
-app.get("/card", authenticateToken, async (req, res) => {
+// Register user endpoint
+app.post("/register", async (req, res) => {
+  const { username, password } = req.body; // Extract username and password from request body
   try {
-    const card = await getRandomCardWithForbiddenWords();
-    res.json(card);
+    // Attempt to register the user
+    const userId = await registerUser(username, password);
+    res.status(201).json({ message: "User registration successful", userId });
   } catch (error) {
-    res.status(500).json({ error: "Failed to fetch card" });
-  }
-});
-
-
-// Get all cards endpoint
-app.get("/cards", async (req, res) => {
-  try {
-    const query = "SELECT * FROM taboo_cards";
-    const result = await pool.query(query);
-    res.status(200).json(result.rows);
-  } catch (error) {
-    console.error("Error fetching cards:", error);
-    res.status(500).send("Failed to fetch cards");
-  }
-});
-
-
-
-// DELETE card endpoint
-app.delete("/card/:cardId", async (req, res) => {
-  const cardId = req.params.cardId;
-  try {
-    const deleted = await deleteCard(cardId);
-    if (deleted) {
-      res.status(200).json({ message: "Card deleted successfully" });
+    if (error.message === "User already exists") {
+      res.status(400).json({ error: error.message });
     } else {
-      res.status(404).json({ error: "Card not found or deletion unsuccessful" });
+      console.error("Error registering user:", error.message);
+      res.status(500).json({ error: "Unsuccessful registration" });
     }
-  } catch (error) {
-    console.error("Error deleting card:", error);
-    res.status(500).json({ error: "Failed to delete card" });
   }
 });
-
-
-
-// Route to add a new card
-app.post('/card', async (req, res) => {
-  const { mainWord, forbiddenWords } = req.body;
-  try {
-    const cardId = await addCard(mainWord, forbiddenWords);
-    res.status(201).json({ message: "Card added successfully", cardId });
-  } catch (error) {
-    console.error("Error adding card:", error.message);
-    res.status(500).json({ error: "Failed to add card" });
-  }
-});
-
-
-// // Route to get a random card with one main word and 6 random forbidden words
-// app.get('/card', async (req, res) => {
-//   try {
-//     const card = await getRandomCardWithForbiddenWords();
-//     res.json(card);
-//   } catch (error) {
-//     res.status(500).json({ error: 'Failed to fetch card' });
-//   }
-// });
-
 
 // Get all users endpoint
 app.get("/users", async (req, res) => {
@@ -285,24 +237,64 @@ app.delete("/users/:username", async (req, res) => {
   }
 });
 
+//******************** CARDS ENDPOINTS *********************
 
-
-// Register user endpoint
-app.post("/register", async (req, res) => {
-  const { username, password } = req.body; // Extract username and password from request body
+// Route to get a random card with one main word and 6 random forbidden words
+app.get("/card", authenticateToken, async (req, res) => {
   try {
-    // Attempt to register the user
-    const userId = await registerUser(username, password);
-    res.status(201).json({ message: "User registration successful", userId });
+    const card = await getRandomCardWithForbiddenWords();
+    res.json(card);
   } catch (error) {
-    if (error.message === "User already exists") {
-      res.status(400).json({ error: error.message });
-    } else {
-      console.error("Error registering user:", error.message);
-      res.status(500).json({ error: "Unsuccessful registration" });
-    }
+    res.status(500).json({ error: "Failed to fetch card" });
   }
 });
+
+// Get all cards endpoint
+app.get("/cards", async (req, res) => {
+  try {
+    const query = "SELECT * FROM taboo_cards";
+    const result = await pool.query(query);
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error("Error fetching cards:", error);
+    res.status(500).send("Failed to fetch cards");
+  }
+});
+
+// DELETE card endpoint
+app.delete("/card/:cardId", async (req, res) => {
+  const cardId = req.params.cardId;
+  try {
+    const deleted = await deleteCard(cardId);
+    if (deleted) {
+      res.status(200).json({ message: "Card deleted successfully" });
+    } else {
+      res.status(404).json({ error: "Card not found or deletion unsuccessful" });
+    }
+  } catch (error) {
+    console.error("Error deleting card:", error);
+    res.status(500).json({ error: "Failed to delete card" });
+  }
+});
+
+// Route to add a new card
+app.post('/card', async (req, res) => {
+  const { mainWord, forbiddenWords } = req.body;
+  try {
+    const cardId = await addCard(mainWord, forbiddenWords);
+    res.status(201).json({ message: "Card added successfully", cardId });
+  } catch (error) {
+    console.error("Error adding card:", error.message);
+    res.status(500).json({ error: "Failed to add card" });
+  }
+});
+
+
+
+
+
+
+
 
 
 const PORT = process.env.PORT || 5000;
